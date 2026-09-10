@@ -66,8 +66,10 @@ class ApplicationTest {
 
   @Test
   void nonGetMethodIsRejected() throws Exception {
-    HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/health")).POST(
-        HttpRequest.BodyPublishers.noBody()).build();
+    HttpRequest request =
+        HttpRequest.newBuilder(URI.create(baseUrl + "/health"))
+            .POST(HttpRequest.BodyPublishers.noBody())
+            .build();
     HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
     assertEquals(405, response.statusCode());
   }

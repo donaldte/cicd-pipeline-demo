@@ -15,11 +15,10 @@ import java.util.concurrent.Executors;
 /**
  * Minimal demo web service used to exercise a full CI/CD pipeline.
  *
- * <p>On purpose this has zero third-party runtime dependencies: it is built
- * entirely on {@code com.sun.net.httpserver}, part of the JDK since Java 6.
- * The goal of this repository is to demonstrate the pipeline (CI gates,
- * semantic-release, CD to dev, manual CD with approvals) -- not to showcase
- * a framework. See README.md.
+ * <p>On purpose this has zero third-party runtime dependencies: it is built entirely on {@code
+ * com.sun.net.httpserver}, part of the JDK since Java 6. The goal of this repository is to
+ * demonstrate the pipeline (CI gates, semantic-release, CD to dev, manual CD with approvals) -- not
+ * to showcase a framework. See README.md.
  */
 public class Application {
 

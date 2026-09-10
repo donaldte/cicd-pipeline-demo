@@ -3,9 +3,9 @@ package tech.squadplus.demo;
 /**
  * Tiny piece of business logic, kept deliberately simple.
  *
- * <p>The point of this demo project is the CI/CD pipeline around it, not the
- * application itself -- so this class exists mainly to give the pipeline
- * something real to compile, unit test, package and scan.
+ * <p>The point of this demo project is the CI/CD pipeline around it, not the application itself --
+ * so this class exists mainly to give the pipeline something real to compile, unit test, package
+ * and scan.
  */
 public class GreetingService {
 
@@ -24,8 +24,8 @@ public class GreetingService {
    *
    * @param rawName the name to greet, possibly {@code null} or blank
    * @return a greeting such as {@code "Hello, World!"}
-   * @throws IllegalArgumentException if the trimmed name is longer than
-   *     {@value #MAX_NAME_LENGTH} characters
+   * @throws IllegalArgumentException if the trimmed name is longer than {@value #MAX_NAME_LENGTH}
+   *     characters
    */
   public String greet(String rawName) {
     String name = normalize(rawName);

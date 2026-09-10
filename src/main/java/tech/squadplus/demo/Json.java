@@ -3,10 +3,9 @@ package tech.squadplus.demo;
 /**
  * Deliberately tiny JSON helper.
  *
- * <p>This project has zero third-party runtime dependencies on purpose (see
- * the README) so responses are built by hand instead of pulling in a full
- * JSON library. It only supports what the two demo endpoints need: a flat
- * object made of string keys and string values.
+ * <p>This project has zero third-party runtime dependencies on purpose (see the README) so
+ * responses are built by hand instead of pulling in a full JSON library. It only supports what the
+ * two demo endpoints need: a flat object made of string keys and string values.
  */
 final class Json {
 
