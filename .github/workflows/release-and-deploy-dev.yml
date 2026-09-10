@@ -93,8 +93,7 @@ jobs:
     name: DAST (OWASP ZAP baseline)
     needs: [release, image]
     runs-on: ubuntu-latest
-    env:
-      <<: *image_env
+    env: *image_env
     permissions:
       contents: read
       packages: read
@@ -144,8 +143,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: dev
-    env:
-      <<: *image_env
+    env: *image_env
     permissions:
       contents: read
       packages: read

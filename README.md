@@ -60,8 +60,11 @@ Shared logic is factored out rather than copy-pasted:
   composite action (JDK + Maven cache) used by every job that needs Java.
 - `release-and-deploy-dev.yml` also demonstrates a **YAML anchor**: the
   registry/image env vars are defined once (`env: &image_env` on the
-  `image` job) and merged into the `dast` and `deploy-dev` jobs with
-  `<<: *image_env`, so the two jobs can't drift out of sync.
+  `image` job) and reused as-is in the `dast` and `deploy-dev` jobs via
+  `env: *image_env`, so the two jobs can't drift out of sync. (GitHub
+  Actions added basic anchor/alias support in 2025 — but not YAML merge
+  keys (`<<:`), so this only works because `dast`/`deploy-dev` reuse the
+  *exact same* mapping rather than extending it with extra keys.)
 
 ## Versioning: semantic-release, not a version you type in by hand
 

@@ -154,9 +154,11 @@ Résultat attendu : **v1.1.0** (minor, pas patch).
 - `.github/actions/setup-build-env/action.yml` : une composite action,
   utilisée par presque tous les jobs pour installer le JDK.
 - Dans `release-and-deploy-dev.yml`, montre `env: &image_env` sur le job
-  `image` et `<<: *image_env` sur `dast` et `deploy-dev` : un ancrage YAML
+  `image` et `env: *image_env` sur `dast` et `deploy-dev` : un ancrage YAML
   natif — la définition n'existe qu'une fois, les deux autres jobs la
-  réutilisent.
+  réutilisent telle quelle. (GitHub Actions supporte les ancres/alias
+  depuis 2025, mais pas les clés de fusion `<<:` — c'est pour ça que ces
+  deux jobs réutilisent le mapping tel quel plutôt que de l'étendre.)
 
 ---
 
