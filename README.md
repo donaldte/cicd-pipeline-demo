@@ -5,8 +5,7 @@ professional CI/CD pipeline on GitHub Actions — built for the *DevOps
 Moderne* webinar (Squad+ Technologies).
 
 **The pipeline is the point of this repository, not the app.** The service
-itself is a couple of JSON endpoints; see [`GUIDE.md`](./GUIDE.md) for the
-live-demo script.
+itself is a couple of JSON endpoints.
 
 ## The application
 
@@ -83,7 +82,7 @@ and the Docker image tag, computed by
 
 Configuration: [`.releaserc.json`](./.releaserc.json).
 
-## One-time setup (do this before the demo, not during it)
+## One-time setup 
 
 1. **Workflow permissions** — Settings → Actions → General → Workflow
    permissions → **Read and write permissions**. Without this,
@@ -96,8 +95,4 @@ Configuration: [`.releaserc.json`](./.releaserc.json).
    - On `production` (and optionally `staging`), add yourself as a
      **required reviewer**. This is what makes `cd-manual.yml` pause for
      approval — it's the whole point of the manual-CD demo.
-3. Push this repository to GitHub (see the note your assistant left about
-   authorship/access) and open a first PR to confirm `ci.yml` runs.
-
-Full walkthrough, including exactly what to change live and why:
-**[`GUIDE.md`](./GUIDE.md)**.
+3.
