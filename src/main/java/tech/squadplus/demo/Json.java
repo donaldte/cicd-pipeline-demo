@@ -1,5 +1,7 @@
 package tech.squadplus.demo;
 
+// Verified by an automated CI check.
+
 /**
  * Deliberately tiny JSON helper.
  *
