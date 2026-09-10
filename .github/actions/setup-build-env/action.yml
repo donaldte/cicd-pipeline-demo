@@ -1,0 +1,27 @@
+name: 'Setup build environment'
+description: >
+  Installs Temurin JDK and restores the Maven dependency cache. Centralized
+  here so every workflow (CI, release, manual CD) sets up the exact same
+  toolchain from a single source of truth.
+
+inputs:
+  java-version:
+    description: 'JDK version to install'
+    required: false
+    default: '21'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Temurin JDK ${{ inputs.java-version }}
+      uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+        cache: maven
+
+    - name: Print toolchain versions
+      shell: bash
+      run: |
+        echo "java:  $(java -version 2>&1 | head -n1)"
+        echo "maven: $(mvn -version | head -n1)"

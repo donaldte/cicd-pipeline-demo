@@ -1,0 +1,201 @@
+# Release & auto-deploy to dev — trigger: push to main (i.e. after a PR
+# from ci.yml has been merged).
+#
+# Flow: build-test (reused from ci.yml's own dependency) -> semantic-release
+# analyzes Conventional Commits since the last release -> IF a release was
+# actually published, build+push a version-tagged image to GHCR -> DAST
+# against that exact image -> automatic deploy to the "dev" environment.
+#
+# Promoting that same version to staging/production is a *separate*,
+# manually-triggered workflow: cd-manual.yml. See GUIDE.md.
+name: Release & Deploy to Dev
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+
+  build-test:
+    name: Build & test
+    uses: ./.github/workflows/reusable-build-test.yml
+
+  release:
+    name: Semantic release
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      published: ${{ steps.semantic.outputs.new_release_published }}
+      version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - name: Checkout (full history needed to analyze commits)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.semantic.outputs.new_release_published }}" = "true" ]; then
+            echo "## Release published: v${{ steps.semantic.outputs.new_release_version }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## No release: no commit since the last one affects the public version" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  image:
+    name: Build & push versioned image
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env: &image_env
+      REGISTRY: ghcr.io
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ needs.release.outputs.version }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  dast:
+    name: DAST (OWASP ZAP baseline)
+    needs: [release, image]
+    runs-on: ubuntu-latest
+    env:
+      <<: *image_env
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run the image under test
+        run: |
+          set -euo pipefail
+          IMAGE_REF="${{ env.IMAGE }}:${{ needs.release.outputs.version }}"
+          docker run -d --name app-under-test -p 8080:8080 "$IMAGE_REF"
+          healthy=false
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8080/health > /dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$healthy" != "true" ]; then
+            echo "::error::app-under-test never became healthy"
+            docker logs app-under-test || true
+            exit 1
+          fi
+
+      - name: ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: 'http://localhost:8080'
+          docker_name: 'ghcr.io/zaproxy/zaproxy:stable'
+          allow_issue_writing: false
+
+      - name: Stop the container
+        if: always()
+        run: docker rm -f app-under-test || true
+
+  deploy-dev:
+    name: Deploy to dev (automatic)
+    needs: [release, dast]
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+    env:
+      <<: *image_env
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Simulate deployment to dev
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.release.outputs.version }}"
+          IMAGE_REF="${{ env.IMAGE }}:$VERSION"
+
+          echo "::group::Pull $IMAGE_REF"
+          docker pull "$IMAGE_REF"
+          echo "::endgroup::"
+
+          docker run -d --name dev-app -p 8080:8080 "$IMAGE_REF"
+
+          healthy=false
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8080/health > /dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$healthy" != "true" ]; then
+            echo "::error::dev-app never became healthy"
+            docker logs dev-app || true
+            docker rm -f dev-app || true
+            exit 1
+          fi
+
+          curl -s http://localhost:8080/health
+          echo
+          docker rm -f dev-app
+
+          {
+            echo "## Deployed to dev"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Version | \`$VERSION\` |"
+            echo "| Image | \`$IMAGE_REF\` |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Deployed at | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |"
+          } >> "$GITHUB_STEP_SUMMARY"

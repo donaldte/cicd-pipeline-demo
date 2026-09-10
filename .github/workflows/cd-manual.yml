@@ -1,0 +1,114 @@
+# CD · Manual — trigger: workflow_dispatch only.
+#
+# This is the promotion path: pick an already-released version (built by
+# release-and-deploy-dev.yml) and send it to a chosen environment. Because
+# the `environment` input uses `type: environment`, GitHub renders a
+# dropdown of whatever environments are configured under
+# Settings -> Environments -- and if that environment has required
+# reviewers configured, this run pauses on the `deploy` job until someone
+# approves it. See GUIDE.md for the exact demo moment this is built for.
+name: CD · Manual Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Released version to deploy, e.g. 1.4.0 (see the Releases page)'
+        required: true
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        type: environment
+
+concurrency:
+  group: cd-manual-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+
+  validate:
+    name: Validate requested version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Confirm the requested image tag exists
+        run: |
+          set -euo pipefail
+          IMAGE_REF="ghcr.io/${{ github.repository }}:${{ inputs.version }}"
+          echo "Looking for $IMAGE_REF ..."
+          if ! docker manifest inspect "$IMAGE_REF" > /dev/null 2>&1; then
+            echo "::error::No image found for version '${{ inputs.version }}'. Check the Releases page for a valid version and try again."
+            exit 1
+          fi
+          echo "Found $IMAGE_REF."
+
+  deploy:
+    name: Deploy ${{ inputs.version }} to ${{ inputs.environment }}
+    needs: validate
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Simulate deployment
+        run: |
+          set -euo pipefail
+          IMAGE_REF="ghcr.io/${{ github.repository }}:${{ inputs.version }}"
+          CONTAINER_NAME="deploy-${{ inputs.environment }}"
+
+          echo "::group::Pull $IMAGE_REF"
+          docker pull "$IMAGE_REF"
+          echo "::endgroup::"
+
+          docker run -d --name "$CONTAINER_NAME" -p 8080:8080 "$IMAGE_REF"
+
+          healthy=false
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8080/health > /dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$healthy" != "true" ]; then
+            echo "::error::deployment never became healthy"
+            docker logs "$CONTAINER_NAME" || true
+            docker rm -f "$CONTAINER_NAME" || true
+            exit 1
+          fi
+
+          curl -s http://localhost:8080/health
+          echo
+          docker rm -f "$CONTAINER_NAME"
+
+          {
+            echo "## Deployed to ${{ inputs.environment }}"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Version | \`${{ inputs.version }}\` |"
+            echo "| Image | \`$IMAGE_REF\` |"
+            echo "| Environment | \`${{ inputs.environment }}\` |"
+            echo "| Triggered by | @${{ github.actor }} |"
+            echo "| Deployed at | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |"
+          } >> "$GITHUB_STEP_SUMMARY"

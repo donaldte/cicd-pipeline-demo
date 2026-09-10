@@ -1,0 +1,40 @@
+# Reusable workflow (`workflow_call`) — the single source of truth for
+# "compile + run the test suite". Both ci.yml (on every PR) and
+# release-and-deploy-dev.yml (on every merge to main) call this instead of
+# duplicating the same four steps twice.
+name: Reusable · Build & Test
+
+on:
+  workflow_call:
+
+jobs:
+  build-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up build environment
+        uses: ./.github/actions/setup-build-env
+
+      - name: Build and run unit + integration tests
+        run: mvn --batch-mode clean verify
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: surefire-reports
+          path: target/surefire-reports
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload built jar
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-jar
+          path: target/cicd-pipeline-demo.jar
+          retention-days: 7
