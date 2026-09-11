@@ -2,7 +2,7 @@
 
 A deliberately small Java service used to demonstrate a complete,
 professional CI/CD pipeline on GitHub Actions — built for the *DevOps
-Moderne* webinar (Squad+ Technologies).
+Moderne* webinar (Squad+ Technologies)
 
 **The pipeline is the point of this repository, not the app.** The service
 itself is a couple of JSON endpoints.
