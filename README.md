@@ -38,8 +38,7 @@ There is **one long-lived branch: `main`**. Everything else is a
 short-lived feature branch merged in through a pull request. `dev`,
 `staging` and `production` in this project are **deployment targets**
 (GitHub Environments), not branches — don't look for a `dev` branch, it
-doesn't exist on purpose. See `GUIDE.md` if that distinction isn't obvious
-to your audience; it's worth calling out explicitly.
+doesn't exist on purpose. 
 
 ## The pipeline, in three workflows
 
